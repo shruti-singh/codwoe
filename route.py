@@ -16,6 +16,19 @@ def student():
 def analysis():
 	return render_template("emb_neigh_analysis.html")
 
+@app.route('/compare_emb',methods=['POST','GET'])
+def compare_emb():
+	print(request.form)
+	if 'favorite_pet' in request.form:
+		print(request.form['favorite_pet'])
+		print(request.form.get('Birds'))
+		print(request.form.get('Dogs'))
+		print(request.form.get('Cats'))
+	else:
+		print(request.form)
+		#form_data = 
+	return render_template("compare_emb.html")
+
 @app.route('/paper_search',methods=['POST','GET'])
 def result():
 	if 'search-text' in request.form:
