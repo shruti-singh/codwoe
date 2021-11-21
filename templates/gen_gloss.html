@@ -1,0 +1,81 @@
+
+    
+    <head>
+        <!-- Global site tag (gtag.js) - Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-149342654-1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+    
+      gtag('config', 'UA-149342654-1');
+    </script>
+        <title>CitationTree</title>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+        <link href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN"
+            crossorigin="anonymous">
+    </head>
+
+    <body>
+        <nav class="navbar navbar-expand-lg navbar-light bg-light">
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarTogglerDemo03" aria-controls="navbarTogglerDemo03" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <a class="navbar-brand" href={{ url_for('student') }}>CODWOE</a>
+            
+            <div class="collapse navbar-collapse" id="navbarTogglerDemo03">
+                <ul class="navbar-nav mr-auto mt-2 mt-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link" href={{ url_for('result') }}>Analysis</a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link" href={{ url_for('team') }}>Team</a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link" href={{ url_for('result') }}>Paper Search</a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link" href={{ url_for('gen_gloss') }}>Gloss Generator</a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+    
+        <section style="margin-top: 200px;">
+            
+            <form action="{{ url_for("gen_gloss")}}" method="post">
+                <div class="row justify-content-md-center">
+                    <div class="form-row">
+                        <div class="col-md-auto">
+                        <input type="text" value="10, 20, 30, 40" id="et" name="emb-text" class="form-control" placeholder="Embedding">
+                        </div>
+                        <div class="col-md-auto">
+                        <input type="text" id="gt" name="gloss-text" class="form-control" placeholder="Gloss">
+                        </div>
+                    </div>
+                </div>
+                <div class="row justify-content-md-center" style="margin-top: 20px;">
+                    <button style='display:flex; justify-content:center;' type="submit" class="btn btn-primary">Submit</button>
+                </div>
+            </form>
+    
+        </section>
+
+
+    </body>
+
+    <!-- <script type="text/javascript">
+
+    
+        function GetRandom() {
+            var myElement = document.getElementById("gembx")
+            myElement.value = Math.random()
+        }
+    
+    </script> -->
+
+    </html>

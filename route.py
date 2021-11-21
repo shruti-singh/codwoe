@@ -57,7 +57,16 @@ def result():
 
 @app.route('/team',methods=['POST','GET'])
 def team():
-		return render_template("team.html")
+	return render_template("team.html")
+
+
+@app.route('/gen_gloss',methods=['POST','GET'])
+def gen_gloss():
+	if request.method == "POST":
+		first_name = request.form.get("emb-text")
+		last_name = request.form.get("gloss-text")
+		print(first_name, last_name)
+	return render_template("gen_gloss.html")
 
 if __name__ == '__main__':
    app.run(port=5000)
