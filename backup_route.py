@@ -19,11 +19,6 @@ import tqdm
 import data
 from sklearn.decomposition import PCA
 
-import plotly
-import plotly.express as px
-from plotly.offline import plot
-from plotly.graph_objs import Scatter
-
 device = 'cpu'
 if torch.cuda.is_available():
     torch.device('cpu')
@@ -113,41 +108,34 @@ def sandbox():
 		glosdicts.append({"id": str(i), "gloss": glos})
 	with open(test_file, "w") as ostr:
 		json.dump(glosdicts, ostr)
-	target_arch_all = ['sgns', 'char', 'electra']
-	for target_arch in target_arch_all:
-		test_dataset = data.JSONDataset(
-			test_file, vocab=train_vocab, freeze_vocab=True, maxlen=model.maxlen
-		)
-		test_dataloader = data.get_dataloader(test_dataset, shuffle=False, batch_size=1024)
-		vec_tensor_key = f"{target_arch}_tensor"
-		assert test_dataset.has_gloss, "File is not usable for the task"
-		# 2. make predictions
-		predictions = []
-		with torch.no_grad():
-			pbar = tqdm.tqdm(desc="Pred.", total=len(test_dataset))
-			for batch in test_dataloader:
-				#print(batch["gloss_tensor"])
-				vecs = model(batch["gloss_tensor"].to('cpu')).to('cpu')
-				for id, vec in zip(batch["id"], vecs.unbind()):
-					predictions.append(
-						{"id": id, target_arch: vec.view(-1).tolist()}
-					)
-				pbar.update(vecs.size(0))
-			pbar.close()
-		o = []
-		for lis in predictions:
-			o.append(lis[target_arch])
-		embed_pca = pca.fit_transform(o)
-		embed_df = pd.DataFrame(data = embed_pca, columns = ['pc1', 'pc2'])
-		embed_df['glos'] = glosses
-		fig_sgns = px.line(embed_df, x=embed_df['pc1'], y = embed_df['pc2'], color='glos')
-		fig_char = px.line(embed_df, x=embed_df['pc1'], y = embed_df['pc2'], color='glos')
-		fig_electra = px.line(embed_df, x=embed_df['pc1'], y = embed_df['pc2'], color='glos')
-
-	graphJSON_sgns = json.dumps(fig_sgns, cls=plotly.utils.PlotlyJSONEncoder)
-	graphJSON_char = json.dumps(fig_char, cls=plotly.utils.PlotlyJSONEncoder)
-	graphJSON_electra = json.dumps(fig_electra, cls=plotly.utils.PlotlyJSONEncoder)
-	return render_template("sandbox.html", complete = sen, stext = stext, utext=utext, srtext = srtext, rnn= rnn, embed_pca = embed_pca, graphJSON_sgns=graphJSON_sgns , graphJSON_char=graphJSON_char, graphJSON_electra=graphJSON_electra)
+	target_arch = 'sgns'
+	test_dataset = data.JSONDataset(
+		test_file, vocab=train_vocab, freeze_vocab=True, maxlen=model.maxlen
+	)
+	test_dataloader = data.get_dataloader(test_dataset, shuffle=False, batch_size=1024)
+	vec_tensor_key = f"{target_arch}_tensor"
+	assert test_dataset.has_gloss, "File is not usable for the task"
+	# 2. make predictions
+	predictions = []
+	with torch.no_grad():
+		pbar = tqdm.tqdm(desc="Pred.", total=len(test_dataset))
+		for batch in test_dataloader:
+			#print(batch["gloss_tensor"])
+			vecs = model(batch["gloss_tensor"].to('cpu')).to('cpu')
+			for id, vec in zip(batch["id"], vecs.unbind()):
+				predictions.append(
+					{"id": id, target_arch: vec.view(-1).tolist()}
+				)
+			pbar.update(vecs.size(0))
+		pbar.close()
+	print(weights, "\n", predictions)
+	#embed_pca = predictions
+	o = []
+	for lis in predictions:
+		o.append(lis['sgns'])
+	embed_pca = pca.fit_transform(o)
+	#print(embed_pca)
+	return render_template("sandbox.html", complete = sen, stext = stext, utext=utext, srtext = srtext, rnn= rnn, embed_pca = embed_pca)
 
 @app.route('/team',methods=['POST','GET'])
 def team():
