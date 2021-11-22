@@ -168,8 +168,11 @@ def sandbox():
 		embed_df = pd.DataFrame(data = embed_pca, columns = ['pc1', 'pc2'])
 		embed_df['glos'] = glosses
 		fig_sgns = px.line(embed_df, x=embed_df['pc1'], y = embed_df['pc2'], color='glos')
+		fig_sgns.update_layout(legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0))
 		fig_char = px.line(embed_df, x=embed_df['pc1'], y = embed_df['pc2'], color='glos')
+		fig_char.update_layout(legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0))
 		fig_electra = px.line(embed_df, x=embed_df['pc1'], y = embed_df['pc2'], color='glos')
+		fig_electra.update_layout(legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0))
 
 	graphJSON_sgns = json.dumps(fig_sgns, cls=plotly.utils.PlotlyJSONEncoder)
 	graphJSON_char = json.dumps(fig_char, cls=plotly.utils.PlotlyJSONEncoder)
