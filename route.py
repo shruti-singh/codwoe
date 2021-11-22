@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for
+import json, random, pickle, models, torch, pandas as pd, data, tqdm
 import json
 import pandas as pd
 import plotly
@@ -44,6 +45,16 @@ pca.set_params(**weights)
 from plotly.offline import plot
 from plotly.graph_objs import Scatter
 
+device = 'cpu'
+if torch.cuda.is_available():
+    torch.device('cuda:0')
+else:
+    torch.device('cpu')
+
+model = torch.load("infer/model.pt", map_location=torch.device('cpu'))
+train_vocab = data.JSONDataset.load("infer/train_dataset.pt").vocab
+
+print(type(model))
 app = Flask(__name__)
 
 word_pca_data = json.load(open('data/word_pca_new.json'))
@@ -181,6 +192,35 @@ def gen_gloss():
 		first_name = request.form.get("emb-text")
 		last_name = request.form.get("gloss-text")
 		print(first_name, last_name)
+
+	test_file = "infer/en.test.json"
+	test_dataset = data.JSONDataset(
+        test_file, vocab=train_vocab, freeze_vocab=True, maxlen=model.maxlen
+    )
+	test_dataloader = data.get_dataloader(test_dataset, shuffle=False, batch_size=1024)
+	source_arch = "electra"
+	vec_tensor_key = f"{source_arch}_tensor"
+	if source_arch == "electra":
+		assert test_dataset.has_electra, "File is not usable for the task"
+	else:
+		assert test_dataset.has_vecs, "File is not usable for the task"
+	
+	
+	# 2. make predictions
+	predictions = []
+	with torch.no_grad():
+		pbar = tqdm.tqdm(desc="Pred.", total=len(test_dataset), disable=None)
+		for batch in test_dataloader:
+			sequence = model.pred(batch[vec_tensor_key].to("cpu"))
+			for id, gloss in zip(batch["id"], test_dataset.decode(sequence)):
+				predictions.append({"id": id, "gloss": gloss})
+			pbar.update(batch[vec_tensor_key].size(0))
+		pbar.close()
+    # 3. dump predictions
+	print(predictions[:5])
+    # with open(args.pred_file, "a") as ostr:
+    #     json.dump(predictions, ostr)
+
 	return render_template("gen_gloss.html")
 
 if __name__ == '__main__':
