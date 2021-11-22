@@ -26,8 +26,19 @@ import plotly
 import plotly.express as px
 from plotly.offline import plot
 from plotly.graph_objs import Scatter
+from plotly.offline import plot
+from plotly.graph_objs import Scatter
+
+device = 'cpu'
+if torch.cuda.is_available():
+    torch.device('cpu')
+else:
+    torch.device('cpu')
 
 pca = PCA(n_components=2)
+
+model = models.RevdictModel.load(r"infer/model.pt").to('cpu')
+train_vocab = data.JSONDataset.load(r"infer/train_dataset.pt").vocab
 
 geeky_file = open(r'./infer/pcaweights.pkl', 'rb')
 weights = pickle.load(geeky_file)
@@ -35,17 +46,8 @@ geeky_file.close()
 
 pca.set_params(**weights)
 
-from plotly.offline import plot
-from plotly.graph_objs import Scatter
-
-device = 'cpu'
-if torch.cuda.is_available():
-    torch.device('cuda:0')
-else:
-    torch.device('cpu')
-
-model = torch.load("infer/model.pt", map_location=torch.device('cpu'))
-train_vocab = data.JSONDataset.load("infer/train_dataset.pt").vocab
+dm_model = torch.load("infer/model_dm.pt", map_location=torch.device('cpu'))
+dm_train_vocab = data.JSONDataset.load("infer/dm_train_dataset.pt").vocab
 
 print(type(model))
 app = Flask(__name__)
