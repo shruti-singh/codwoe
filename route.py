@@ -28,7 +28,7 @@ def compare_emb():
 	if 'dword[]' in request.form:
 		dict_words = request.form.getlist('dword[]')
 	else:
-		dict_words = ['mafia', 'chef', 'dead']
+		dict_words = ['mafia', 'liar', 'dead']
 	rows_list = []
 	for arch in ['sgns', 'char', 'elec']:
 		for w in dict_words:
@@ -36,8 +36,11 @@ def compare_emb():
 			rows_list.append({'word': w, 'arch': arch, 'x': word_pca_data[w][arch][0], 'y': word_pca_data[w][arch][1]})
 	df = pd.DataFrame(rows_list)
 	fig_sgns = px.line(df.loc[df['arch'] == 'sgns'], x='x', y='y', color='word')
+	fig_sgns.update_layout(legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0))
 	fig_char = px.line(df.loc[df['arch'] == 'char'], x='x', y='y', color='word')
+	fig_char.update_layout(legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0))
 	fig_electra = px.line(df.loc[df['arch'] == 'elec'], x='x', y='y', color='word')
+	fig_electra.update_layout(legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0))
 
 	graphJSON_sgns = json.dumps(fig_sgns, cls=plotly.utils.PlotlyJSONEncoder)
 	graphJSON_char = json.dumps(fig_char, cls=plotly.utils.PlotlyJSONEncoder)
