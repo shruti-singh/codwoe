@@ -219,5 +219,5 @@ def gen_gloss():
 	return render_template("gen_gloss.html")
 
 if __name__ == '__main__':
-   app.run(port=5001, debug=True, use_debugger=False)
+   app.run(host='0.0.0.0', port=3000)
    # load_bigger_graph()
