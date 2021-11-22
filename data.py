@@ -2,13 +2,10 @@ from collections import defaultdict
 from itertools import count
 import json
 import random
-import tempfile
 
 import torch
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset, Sampler
-
-import sentencepiece as spm
 
 BOS = "<seq>"
 EOS = "</seq>"
@@ -21,15 +18,7 @@ SUPPORTED_ARCHS = ("sgns", "char")
 class JSONDataset(Dataset):
     """Reads a CODWOE JSON dataset"""
 
-    def __init__(
-        self,
-        file,
-        vocab=None,
-        freeze_vocab=False,
-        maxlen=256,
-        spm_model_name=None,
-        train_spm=False,
-    ):
+    def __init__(self, file, vocab=None, freeze_vocab=False, maxlen=256):
         """
         Construct a torch.utils.data.Dataset compatible with torch data API and
         codwoe data.
@@ -37,9 +26,7 @@ class JSONDataset(Dataset):
               `vocab` a dictionary mapping strings to indices
               `freeze_vocab` whether to update vocabulary, or just replace unknown items with OOV token
               `maxlen` the maximum number of tokens per gloss
-              `spm_model_name` create and use this sentencepiece model instead of whitespace tokenization
         """
-        self.use_spm = spm_model_name is not None
         if vocab is None:
             self.vocab = defaultdict(count().__next__)
         else:
@@ -55,49 +42,20 @@ class JSONDataset(Dataset):
             self.vocab = dict(vocab)
         with open(file, "r") as istr:
             self.items = json.load(istr)
-        if self.use_spm:
-            if train_spm:
-                with tempfile.NamedTemporaryFile(mode="w+") as temp_fp:
-                    for gls in (j["gloss"] for j in self.items):
-                        print(gls, file=temp_fp)
-                    temp_fp.seek(0)
-                    spm.SentencePieceTrainer.train(
-                        input=temp_fp.name,
-                        model_prefix=spm_model_name,
-                        vocab_size= 7000, #15000,
-                        pad_id=pad,
-                        pad_piece=PAD,
-                        eos_id=eos,
-                        eos_piece=EOS,
-                        bos_id=bos,
-                        bos_piece=BOS,
-                        unk_id=unk,
-                        unk_piece=UNK,
-                    )
-            self.spm_model = spm.SentencePieceProcessor(
-                model_file=f"{spm_model_name}.model"
-            )
         # preparse data
         for json_dict in self.items:
             # in definition modeling test datasets, gloss targets are absent
             if "gloss" in json_dict:
-                if spm_model_name:
-                    json_dict["gloss_tensor"] = torch.tensor(
-                        self.spm_model.encode(
-                            json_dict["gloss"], add_eos=True, add_bos=True
-                        )
-                    )
-                else:
-                    json_dict["gloss_tensor"] = torch.tensor(
-                        [bos]
-                        + [
-                            self.vocab[word]
-                            if not freeze_vocab
-                            else self.vocab.get(word, unk)
-                            for word in json_dict["gloss"].split()
-                        ]
-                        + [eos]
-                    )
+                json_dict["gloss_tensor"] = torch.tensor(
+                    [bos]
+                    + [
+                        self.vocab[word]
+                        if not freeze_vocab
+                        else self.vocab.get(word, unk)
+                        for word in json_dict["gloss"].split()
+                    ]
+                    + [eos]
+                )
                 if maxlen:
                     json_dict["gloss_tensor"] = json_dict["gloss_tensor"][:maxlen]
             # in reverse dictionary test datasets, vector targets are absent
@@ -106,15 +64,17 @@ class JSONDataset(Dataset):
                     json_dict[f"{arch}_tensor"] = torch.tensor(json_dict[arch])
             if "electra" in json_dict:
                 json_dict["electra_tensor"] = torch.tensor(json_dict["electra"])
-        if self.use_spm:
-            self.vocab = {
-                self.spm_model.id_to_piece(idx): idx
-                for idx in range(self.spm_model.get_piece_size())
-            }
+
+                                           #CHANGE 1
+            if "electra" in json_dict and "sgns" in json_dict and "char" in json_dict:
+                json_dict["concatenated_tensor"] = torch.tensor(json_dict["sgns"] + json_dict["char"] + json_dict["electra"])
+            elif "sgns" in json_dict and "char" in json_dict:
+                json_dict["concatenated_tensor"] = torch.tensor(json_dict["sgns"] + json_dict["char"])
 
         self.has_gloss = "gloss" in self.items[0]
         self.has_vecs = SUPPORTED_ARCHS[0] in self.items[0]
         self.has_electra = "electra" in self.items[0]
+        self.has_concatenated = "concatenated_tensor" in self.items[0]  #CHANGE 2
         self.itos = sorted(self.vocab, key=lambda w: self.vocab[w])
 
     def __len__(self):
@@ -125,22 +85,19 @@ class JSONDataset(Dataset):
 
     # we're adding this method to simplify the code in our predictions of
     # glosses
-    @torch.no_grad()
     def decode(self, tensor):
         """Convert a sequence of indices (possibly batched) to tokens"""
-        if tensor.dim() == 2:
-            # we have batched tensors of shape [Seq x Batch]
-            decoded = []
-            for tensor_ in tensor.t():
-                decoded.append(self.decode(tensor_))
-            return decoded
-        else:
-            ids = [i.item() for i in tensor if i != self.vocab[PAD]]
-            if self.itos[ids[0]] == BOS: ids = ids[1:]
-            if self.itos[ids[-1]] == EOS: ids = ids[:-1]
-            if self.use_spm:
-                return self.spm_model.decode(ids)
-            return " ".join(self.itos[i] for i in ids)
+        with torch.no_grad():
+            if tensor.dim() == 2:
+                # we have batched tensors of shape [Seq x Batch]
+                decoded = []
+                for tensor_ in tensor.t():
+                    decoded.append(self.decode(tensor_))
+                return decoded
+            else:
+                return " ".join(
+                    [self.itos[i.item()] for i in tensor if i != self.vocab[PAD]]
+                )
 
     def save(self, file):
         torch.save(self, file)
@@ -156,7 +113,7 @@ class TokenSampler(Sampler):
     """Produce batches with up to `batch_size` tokens in each batch"""
 
     def __init__(
-        self, dataset, batch_size=150, size_fn=len, drop_last=False, shuffle=True
+        self, dataset, batch_size=200, size_fn=len, drop_last=False, shuffle=True
     ):
         """
         args: `dataset` a torch.utils.data.Dataset (iterable style)
@@ -194,9 +151,9 @@ class TokenSampler(Sampler):
 
     def __len__(self):
         if self._len is None:
-            self._len = round(
+            self._len = (
                 sum(self.size_fn(self.dataset[i]) for i in range(len(self.dataset)))
-                / self.batch_size
+                // self.batch_size
             )
         return self._len
 
@@ -213,6 +170,7 @@ def get_dataloader(dataset, batch_size=200, shuffle=True):
     has_gloss = dataset.has_gloss
     has_vecs = dataset.has_vecs
     has_electra = dataset.has_electra
+    has_concatenated = dataset.has_concatenated    #CHANGE 3
     PAD_idx = dataset.vocab[PAD]
 
     # the collate function has to convert a list of dataset items into a batch
@@ -231,6 +189,8 @@ def get_dataloader(dataset, batch_size=200, shuffle=True):
                 batch[f"{arch}_tensor"] = torch.stack(batch[f"{arch}_tensor"])
         if has_electra:
             batch["electra_tensor"] = torch.stack(batch["electra_tensor"])
+        if has_concatenated:                                                            #CHANGE 4
+            batch["concatenated_tensor"] = torch.stack(batch["concatenated_tensor"])
         return dict(batch)
 
     if dataset.has_gloss:
@@ -253,27 +213,3 @@ def get_dataloader(dataset, batch_size=200, shuffle=True):
         return DataLoader(
             dataset, collate_fn=do_collate, batch_size=batch_size, shuffle=shuffle
         )
-
-
-def get_train_dataset(train_file, spm_model_path, save_dir):
-    if (save_dir / "train_dataset.pt").is_file():
-        dataset = JSONDataset.load(save_dir / "train_dataset.pt")
-    else:
-        dataset = JSONDataset(
-            train_file,
-            spm_model_name=spm_model_path.with_suffix(""),
-            train_spm=not spm_model_path.with_suffix(".model").is_file(),
-        )
-        dataset.save(save_dir / "train_dataset.pt")
-    return dataset
-
-
-def get_dev_dataset(dev_file, spm_model_path, save_dir, train_dataset=None):
-    if (save_dir / "dev_dataset.pt").is_file():
-        dataset = JSONDataset.load(save_dir / "dev_dataset.pt")
-    else:
-        dataset = JSONDataset(
-            dev_file, spm_model_name=spm_model_path, train_spm=False
-        )
-        dataset.save(save_dir / "dev_dataset.pt")
-    return dataset

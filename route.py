@@ -49,7 +49,7 @@ pca.set_params(**weights)
 dm_model = torch.load("infer/model_dm.pt", map_location=torch.device('cpu'))
 dm_train_vocab = data.JSONDataset.load("infer/dm_train_dataset.pt").vocab
 
-print(type(model))
+print(type(dm_model))
 app = Flask(__name__)
 
 word_pca_data = json.load(open('data/word_pca_new.json'))
@@ -186,40 +186,46 @@ def team():
 
 @app.route('/gen_gloss',methods=['POST','GET'])
 def gen_gloss():
+	predictions=[]
 	if request.method == "POST":
 		first_name = request.form.get("emb-text")
+		first_name = eval(first_name)
 		last_name = request.form.get("gloss-text")
 		print(first_name, last_name)
 
-	test_file = "infer/en.test.json"
-	test_dataset = data.JSONDataset(
-        test_file, vocab=train_vocab, freeze_vocab=True, maxlen=model.maxlen
-    )
-	test_dataloader = data.get_dataloader(test_dataset, shuffle=False, batch_size=1024)
-	source_arch = "electra"
-	vec_tensor_key = f"{source_arch}_tensor"
-	if source_arch == "electra":
-		assert test_dataset.has_electra, "File is not usable for the task"
-	else:
-		assert test_dataset.has_vecs, "File is not usable for the task"
-	
-	
-	# 2. make predictions
-	predictions = []
-	with torch.no_grad():
-		pbar = tqdm.tqdm(desc="Pred.", total=len(test_dataset), disable=None)
-		for batch in test_dataloader:
-			sequence = model.pred(batch[vec_tensor_key].to("cpu"))
-			for id, gloss in zip(batch["id"], test_dataset.decode(sequence)):
-				predictions.append({"id": id, "gloss": gloss})
-			pbar.update(batch[vec_tensor_key].size(0))
-		pbar.close()
-    # 3. dump predictions
-	print(predictions[:5])
-    # with open(args.pred_file, "a") as ostr:
-    #     json.dump(predictions, ostr)
+		with open('infer/en.test.json', 'w') as f:
+			json.dump([{"id": "en.defmod.1", "sgns": first_name, "char": first_name, "electra": first_name}], f)
 
-	return render_template("gen_gloss.html")
+		test_file = "infer/en.test.json"
+		test_dataset = data.JSONDataset(
+			test_file, vocab=dm_train_vocab, freeze_vocab=True, maxlen=dm_model.maxlen
+		)
+		test_dataloader = data.get_dataloader(test_dataset, shuffle=False)
+		source_arch = "concatenated"
+		vec_tensor_key = f"{source_arch}_tensor"
+		if source_arch == "electra":
+			assert test_dataset.has_electra, "File is not usable for the task"
+		else:
+			assert test_dataset.has_vecs, "File is not usable for the task"
+		
+		
+		# 2. make predictions
+		predictions = []
+		with torch.no_grad():
+			pbar = tqdm.tqdm(desc="Pred.", total=len(test_dataset), disable=None)
+			for batch in test_dataloader:
+				sequence = dm_model.pred(batch[vec_tensor_key].to("cpu"))
+				for id, gloss in zip(batch["id"], test_dataset.decode(sequence)):
+					predictions.append({"id": id, "gloss": gloss})
+				pbar.update(batch[vec_tensor_key].size(0))
+			pbar.close()
+		
+		print(predictions)
+    
+	if not predictions:
+		predictions=[{"gloss":"</seq>"}]
+
+	return render_template("gen_gloss.html", gloss_pred=predictions[0]['gloss'])
 
 if __name__ == '__main__':
    app.run(host='0.0.0.0', port=3000)
