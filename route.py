@@ -32,10 +32,10 @@ if torch.cuda.is_available():
 else:
     torch.device('cpu')
 pca = PCA(n_components=2)
-model = models.RevdictModel.load("D:\\nlp613\\codwoe_app\\infer\\model.pt").to('cpu')
-train_vocab = data.JSONDataset.load("D:\\nlp613\\codwoe_app\\infer\\train_dataset.pt").vocab
+model = models.RevdictModel.load(r".\infer\model.pt").to('cpu')
+train_vocab = data.JSONDataset.load(r".\infer\train_dataset.pt").vocab
 
-geeky_file = open('D:\\nlp613\\codwoe_app\\pcaweights.pkl', 'rb')
+geeky_file = open(r'.\infer\pcaweights.pkl', 'rb')
 weights = pickle.load(geeky_file)
 geeky_file.close()  
 
@@ -113,8 +113,8 @@ def sandbox():
 		else:
 			tag_words.append(tup)
 	rnn = ' '.join(tag_words[i][0] for i in range(len(tag_words)))
-	test_file = r"D:\nlp613\codwoe_app\modelip.json"
-	pred_file = r"D:\nlp613\codwoe_app\modelop.json"
+	test_file = r".\infer\modelip.json"
+	pred_file = r".\infer\modelop.json"
 
 	#with open(test_file, "w") as ostr:
 	#	json.dump([{"id": "xyz", "gloss": sen}], ostr)

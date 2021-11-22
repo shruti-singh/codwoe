@@ -35,20 +35,27 @@
             <div class="collapse navbar-collapse" id="navbarTogglerDemo03">
                 <ul class="navbar-nav mr-auto mt-2 mt-lg-0">
                     <li class="nav-item">
-                        <a class="nav-link" href={{ url_for('result') }}>Analysis</a>
+                        <a class="nav-link" href={{ url_for('compare_emb') }}>Associations</a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link" href={{ url_for('result') }}>Paper Search</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href={{ url_for('sandbox') }}>Sandbox</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href={{ url_for('gen_gloss') }}>Gloss Generator</a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link" href={{ url_for('analysis') }}>Graphs</a>
                     </li>
 
                     <li class="nav-item">
                         <a class="nav-link" href={{ url_for('team') }}>Team</a>
                     </li>
 
-                    <li class="nav-item">
-                        <a class="nav-link" href={{ url_for('result') }}>Paper Search</a>
-                    </li>
-
-                    <li class="nav-item">
-                        <a class="nav-link" href={{ url_for('gen_gloss') }}>Gloss Generator</a>
-                    </li>
                 </ul>
             </div>
         </nav>
