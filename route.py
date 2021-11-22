@@ -27,16 +27,9 @@ import plotly.express as px
 from plotly.offline import plot
 from plotly.graph_objs import Scatter
 
-device = 'cpu'
-if torch.cuda.is_available():
-    torch.device('cpu')
-else:
-    torch.device('cpu')
 pca = PCA(n_components=2)
-model = models.RevdictModel.load(r".\infer\model.pt").to('cpu')
-train_vocab = data.JSONDataset.load(r".\infer\train_dataset.pt").vocab
 
-geeky_file = open(r'.\infer\pcaweights.pkl', 'rb')
+geeky_file = open(r'./infer/pcaweights.pkl', 'rb')
 weights = pickle.load(geeky_file)
 geeky_file.close()  
 
